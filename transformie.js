@@ -2,29 +2,26 @@ jQuery(function() {
 
 	if(!jQuery.browser.msie) return;
 
-	if(Transformie.stylesheets)
-		Transformie.parseStylesheets();
+	// Parsing stylesheets, almost always makes sense
+	Transformie.defaults.stylesheets && Transformie.parseStylesheets();
 
-	if(Transformie.inlineCSS) {
-		jQuery(Transformie.inlineCSS === true ? '*' : Transformie.inlineCSS).each(function() {
-			if(Transformie.resolveCSSKey(this.style))
-				Transformie.refreshMatrix(this, Transformie.resolveCSSKey(this.style));
-		});
-	}
-
-	if(Transformie.trackChangesFor) {
-		Transformie.bindChangeEvent(Transformie.trackChangesFor);
-	}
+	// if we want to track inline CSS, we're resolving all inline transforms at page launch
+	Transformie.inlineCSS && Transformie.apply(Transformie.inlineCSS === true ? '*' : Transformie.inlineCSS);
+	
+	// we have a dynamic site and we want to track inline style changes on a list of elements
+	Transformie.defaults.track && Transformie.track(Transformie.defaults.track);
 	
 });
 
 
 var Transformie = {
 	
-	inlineCSS: '*',
-	stylesheets: true,
-	trackChangesFor: '*',
-	centerOrigin: 'margin', //false, position
+	defaults: {
+		inlineCSS: '*',
+		stylesheets: true,
+		track: '*',
+		centerOrigin: 'margin' //false, position
+	},
 	
 	toRadian: function(value) {
 		if(value.indexOf("deg") != -1) {
@@ -36,14 +33,7 @@ var Transformie = {
 		}
 	},
 	
-	bindChangeEvent: function(query) {
-		jQuery(query).unbind('propertychange').bind('propertychange', function(e) {
-			if(e.originalEvent.propertyName == 'style.webkitTransform' || e.originalEvent.propertyName == 'style.MozTransform' || e.originalEvent.propertyName == 'style.transform')
-				Transformie.refreshMatrix(this, Transformie.resolveCSSKey(this.style));
-		});
-	},
-	
-	resolveCSSKey: function(style) {
+	getTransformValue: function(style) {
 		return style['-webkit-transform']
 		|| 	style['webkit-transform'] 
 		|| 	style['transform']
@@ -54,22 +44,67 @@ var Transformie = {
 		|| 	style.mozTransform;
 	},
 	
+	track: function(query) {
+		jQuery(query).unbind('propertychange').bind('propertychange', function(e) {
+			if(e.originalEvent.propertyName == 'style.webkitTransform' || e.originalEvent.propertyName == 'style.MozTransform' || e.originalEvent.propertyName == 'style.transform')
+				Transformie.applyMatrixToElement(Transformie.computeMatrix(Transformie.getTransformValue(this.style)), this);
+		});
+	},
+	
+	apply: function(selector) {
+		jQuery(selector).each(function() {
+			var foundRule = Transformie.getTransformValue(this.style);
+			foundRule && Transformie.applyMatrixToElement(Transformie.computeMatrix(foundRule), this);
+		});
+	},
+	
 	parseStylesheets: function() {	
 		//Loop through all stylesheets and apply initial rules
 		for (var i=0; i < document.styleSheets.length; i++) {
+			if(document.styleSheets[i].readOnly) continue; // if the stylesheet gives us security issues and is readOnly, exit here
 			for (var j=0; j < document.styleSheets[i].rules.length; j++) {
-				if(Transformie.resolveCSSKey(document.styleSheets[i].rules[j].style))
-					Transformie.refreshMatrix(document.styleSheets[i].rules[j].selectorText, Transformie.resolveCSSKey(document.styleSheets[i].rules[j].style));
+				var foundRule = Transformie.getTransformValue(document.styleSheets[i].rules[j].style);
+				foundRule && Transformie.applyMatrixToSelector(Transformie.computeMatrix(foundRule), document.styleSheets[i].rules[j].selectorText);
 			};
 		};	
 		
 	},
 	
-	refreshMatrix: function(selector, ruleValue) {
+	applyMatrixToSelector: function(matrix, selector) {
 
-		//TODO: Figure what to do with :hover
+		//TODO: Figure what to do with :hover, can't just apply it to found elements
 		if(selector.indexOf && selector.indexOf(':hover') != -1)
 			return;
+		
+		jQuery(selector).each(function() {
+			Transformie.applyMatrixToElement(matrix, this);
+		});
+		
+	},
+	
+	applyMatrixToElement: function(matrix, element) {
+		
+		if(!element.filters["DXImageTransform.Microsoft.Matrix"]) {
+			element.style.filter = (element.style.filter ? '' : ' ' ) + "progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand')";
+			Transformie.track(element); // if an element is being tracked once, it is likely we do something with it later on, so track changes on this one by default
+		}
+
+		element.filters["DXImageTransform.Microsoft.Matrix"].M11 = matrix.elements[0][0];
+		element.filters["DXImageTransform.Microsoft.Matrix"].M12 = matrix.elements[0][1];
+		element.filters["DXImageTransform.Microsoft.Matrix"].M21 = matrix.elements[1][0];
+		element.filters["DXImageTransform.Microsoft.Matrix"].M22 = matrix.elements[1][1];
+		
+		// Since we unfortunately do not have the possibility to use Dx,Dy with sizing method 'auto expand', we need to do
+		// something hacky to work around supporting the transform-origin property, either modifying top/left or margins.
+		// IE Team: Would be really helpful if you could fix this to work on auto expand, or introduce a sizing method that works like the default, but doesn't clip..
+		if(Transformie.defaults.centerOrigin) { //TODO: Add computed borders here to clientWidth/height or find a better prop to look for
+			element.style[Transformie.defaults.centerOrigin == 'margin' ? 'marginLeft' : 'left'] = -(element.offsetWidth/2) + (element.clientWidth/2) + "px";
+			element.style[Transformie.defaults.centerOrigin == 'margin' ? 'marginTop' : 'top'] = -(element.offsetHeight/2) + (element.clientHeight/2) + "px";
+		}
+		
+	},
+	
+	computeMatrix: function(ruleValue) {
 	
 		//Split the webkit functions and loop through them
 		var functions = ruleValue.match(/[A-z]+\([^\)]+/g) || [];
@@ -83,7 +118,7 @@ var Transformie = {
 		
 			//Now we rotate through the functions and add it to our matrix
 			switch(func) {
-				case 'matrix': //Attention: Matrix in IE doesn't support e,f = tx, ty = translation
+				case 'matrix': //Attention: Matrix in IE doesn't support e,f = tx,ty = translation
 					var values = value.split(',');
 					matrices.push($M([
 						[values[0],	values[2],	0],
@@ -156,25 +191,7 @@ var Transformie = {
 			if(matrices[k+1]) matrix = matrices[k].x(matrices[k+1]);
 		};
 
-		//Finally, we apply the new matrix to our niftly matrix filter function
-		jQuery(selector).each(function() {
-		
-			if(!this.filters["DXImageTransform.Microsoft.Matrix"]) {
-				this.style.filter = (this.style.filter ? '' : ' ' ) + "progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand')";
-				Transformie.bindChangeEvent(this);
-			}
-
-			this.filters["DXImageTransform.Microsoft.Matrix"].M11 = matrix.elements[0][0];
-			this.filters["DXImageTransform.Microsoft.Matrix"].M12 = matrix.elements[0][1];
-			this.filters["DXImageTransform.Microsoft.Matrix"].M21 = matrix.elements[1][0];
-			this.filters["DXImageTransform.Microsoft.Matrix"].M22 = matrix.elements[1][1];
-			
-			if(Transformie.centerOrigin) { //TODO: Add computed borders here to clientWidth/height or find a better prop to look for
-				this.style[Transformie.centerOrigin == 'margin' ? 'marginLeft' : 'left'] = -(this.offsetWidth/2) + (this.clientWidth/2) + "px";
-				this.style[Transformie.centerOrigin == 'margin' ? 'marginTop' : 'top'] = -(this.offsetHeight/2) + (this.clientHeight/2) + "px";
-			}
-			
-		});
+		return matrix;
 		
 	}	
 };

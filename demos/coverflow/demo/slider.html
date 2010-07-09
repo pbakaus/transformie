@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>jQuery UI Coverflow - Slider combination</title>
+	<link type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.7/themes/ui-darkness/ui.all.css" rel="Stylesheet" />	
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.1/jquery.js"></script>
+	<script type="text/javascript" src="../external/ui.core.js"></script>
+	<script type="text/javascript" src="../external/ui.slider.js"></script>
+	<script type="text/javascript" src="../ui.coverflow.js"></script>
+	<link type="text/css" href="demos.css" rel="stylesheet" />
+	
+	<!-- Transformie is a plugin that makes webkit's CSS transforms work in Internet Explorer (download at http://paulbakaus.com/projects) -->
+	<script type="text/javascript" src="../../../sylvester.js"></script>
+	<script type="text/javascript" src="../../../transformie.js"></script>
+
+	<style type="text/css">
+
+		body { background: #000; color: #bbb; }
+		a { color: #fff; text-decoration: none; }
+		p { text-align: center; }
+
+		div.wrapper { height: 800px; border: 2px solid #999; padding: 10px; overflow: hidden; position: relative; background: #111; }
+
+		#coverflow { height: 150px; width: 50000px; padding: 30px; position: absolute; bottom: 0px; left: 0px; }
+		#coverflow div { border: 10px solid red; width: 200px; float: left; position: relative; height: 200px; margin: 20px; background: #fff; }
+
+		#coverflow div img { width: 200px; position: absolute; bottom: 0; left: 0; -webkit-box-reflect:below 5px -webkit-gradient(linear, left top, left bottom, from(transparent), color-stop(0.5, transparent), to(white)); }
+		
+		#coverflow div.preview { z-index: 1000 !important; }
+		#coverflow div img.preview { -webkit-transition: all 0.3s; -webkit-transform: scale(2); -moz-transform: scale(2); -webkit-box-reflect:below 2px -webkit-gradient(linear, left top, left bottom, from(transparent), color-stop(0.5, transparent), to(white)); }
+		#coverflow div img.no-preview { -webkit-transition: all 0.3s; -webkit-transform: scale(1); }
+		
+		#demo-frame { overflow: hidden; }
+		#slider { position: absolute; bottom: 10px; left: 10px; right: 10px; }
+		div.fade { background: #000; position: absolute; z-index: 999; top: 0; left: 0; height: 100%; width: 100%; display: none; opacity: 0.8; }
+	
+		div.footer ul { list-style: none; margin: 0; padding: 0; text-align: center; }
+		div.footer ul li { display: inline; }
+		div.footer ul li a { background: #333; display: inline-block; padding: 3px; padding-left: 6px; padding-right: 6px; -webkit-border-radius: 2px; }
+		div.footer ul li a:hover { background: #222; }
+	
+	</style>
+	
+	<script type="text/javascript">
+	
+	Transformie.centerOrigin = false;
+	
+	$(function() {
+
+		var picOffset = 0;
+		function morePics(callback) {
+			
+			picOffset += 10;
+		
+			$.getJSON("http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20flickr.photos.interestingness("+(picOffset-10)+",10)&format=json&callback=?", function(data) {
+
+				var photos = data.query.results.photo;
+				for (var i=0; i < photos.length; i++) {
+					$('<div><img class="no-preview" src="http://farm'+photos[i].farm+'.static.flickr.com/'+photos[i].server+'/'+photos[i].id+'_'+photos[i].secret+'.jpg"></div>')
+						.appendTo('#coverflow');
+				};
+
+				callback && callback(data.query.results.photo);
+				
+				if(Transformie.inlineCSS) {
+					jQuery(Transformie.inlineCSS === true ? '*' : Transformie.inlineCSS).each(function() {
+						if(Transformie.resolveCSSKey(this.style))
+							Transformie.refreshMatrix(this, Transformie.resolveCSSKey(this.style));
+					});
+				}
+
+			});
+			
+		}
+		
+		function moreCheck(val) {
+			
+			var items = $('#coverflow > div').length;
+			var nearEnd = items - (val+1) < 5;
+			
+			if(nearEnd) morePics(function() {
+				$("#slider").slider('option', 'max', items).slider('option', 'value', $("#slider").slider('option', 'value')); //update slider, setting its own value is needed
+				$('#coverflow').coverflow('refresh'); //refresh the coverflow to include the new pics
+			});
+			
+		}
+		
+		// Request the first batch of pics, and then initialize the coverflow and slider components
+		morePics(function() {
+			
+			$("#coverflow").coverflow({
+				opacity: false,
+				transformation: function(mod, side) {
+					return window.alternate ? 'rotate('+(mod*(side == 'right' ? -1 : 1)*30)+'deg) scale('+(1+((1-mod)*0.5))+')' : 'matrix(1,'+(mod * (side == 'right' ? -0.5 : 0.5))+',0,1,0,0) scale('+(1+((1-mod)*0.5))+')';
+				},
+				select: function(event, ui) {
+					
+					// move the slider handle to the new value
+					$('#slider').slider('value', ui.value+1);
+					
+					// check if we'd want more pictures when coming to the end
+					moreCheck(ui.value);
+					
+					// refocus the slider to allow continous keyboard navigation
+					$('#slider a')[0].focus();
+					
+				}
+			});
+
+			$("#slider").slider({
+				min: 1,
+				max: $('#coverflow > div').length,
+				slide: function(event, ui) {
+					
+					// Call the select method in the coverflow, since it's zero-based we need to substract 1
+					// Note: Third argument is set to true because we don't want to fire the callback (no race cond.)
+					$('#coverflow').coverflow('select', ui.value-1, true);
+					
+					// check if we'd want more pictures when coming to the end
+					moreCheck(ui.value-1);
+					
+					// unset a previous preview state if needed
+					if($('div.fade').is(':visible')) {
+						$('#coverflow > div').removeClass('preview');
+						$('#coverflow > div img').removeClass('preview').addClass('no-preview');
+						$('div.fade').hide();
+					}
+					
+				},
+				stop: function() {
+					$("#slider").slider('option', 'max', $('#coverflow > div').length).slider('option', 'value', $("#slider").slider('option', 'value')); //update slider, setting its own value is needed
+				}
+			});
+			
+			// set the focus to the newly initialized slider
+			$('#slider a')[0].focus();
+			
+		});
+
+		
+	});
+	</script>
+</head>
+<body>
+
+<div class="fade"></div>
+
+<div class="demo">
+
+	<div class="wrapper">
+		<div id="coverflow">
+		</div>
+		<div id='slider'></div>
+	</div>
+
+</div><!-- End demo -->
+
+<div class="demo-description">
+
+<p>
+	Hint: Toggle preview with space key or double click.
+</p>
+
+<p style="font-style: italic;">
+	This demo is dedicated to the pioneers of the Webkit project. Without you, HTML5 would never receive enough attention. Thank you!
+</p>
+
+<div class="footer">
+	<ul>
+		<li><a href="http://labs.dextrose.com">Dextrose Labs</a></li>
+		<li><a href="#" id="alternate">Alternate version</a></li>
+		<li><a href="http://twitter.com/?status=Checkout%20the%20new%20magnificent%20coverflow%2Fflickr%20demo%20of%20%40pbakaus%20at%20http%3A%2F%2Fbit.ly%2F9BHNEE">Tweet this</a></li>
+	</ul>
+</div>
+
+	
+
+</div><!-- End demo-description -->
+
+</body>
+</html>

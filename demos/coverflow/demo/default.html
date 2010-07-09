@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>jQuery UI Coverflow - Default functionality</title>
+	<script type="text/javascript" src="../external/jquery-1.3.2.js"></script>
+	<script type="text/javascript" src="../external/ui.core.js"></script>
+	<script type="text/javascript" src="../ui.coverflow.js"></script>
+	
+	<!-- Transformie is a plugin that makes webkit's CSS transforms work in Internet Explorer (download at http://paulbakaus.com/projects) -->
+	<script type="text/javascript" src="../../../sylvester.js"></script>
+	<script type="text/javascript" src="../../../transformie.js"></script>
+	
+	
+	<link type="text/css" href="demos.css" rel="stylesheet" />
+	<style type="text/css">
+
+		#coverflow {
+			height: 80px; width: 2000px; padding: 30px;
+			position: absolute; top: 0px; left: 0px;
+		}
+		
+		#coverflow img {
+			width: 64px; height: 64px; border: 1px solid #999;
+			float: left; position: relative; margin: 5px;
+		}
+		
+		div.wrapper {
+			height: 140px; width: 500px; border: 2px solid #999;
+			overflow: hidden; position: relative;
+		}
+		
+		#demo-frame {
+			overflow: hidden;
+		}
+	
+	</style>
+
+	<script type="text/javascript">
+	$(function() {
+		var html = $('#demo-frame div.wrapper').html();
+		$('#demo-frame div.wrapper').parent().append(html).end().remove();
+		
+		//You don't need this timeout in your pages - Safari has stupid issues with our demo system
+		window.setTimeout(function() {
+			$("#coverflow").coverflow();
+		}, $.browser.safari ? 100 : 0);
+	});
+	</script>
+</head>
+<body>
+<div class="demo">
+
+	<div class="wrapper">
+		<div id="coverflow">
+			<img src="icons/1.png" />
+			<img src="icons/2.png" />
+			<img src="icons/3.png" />
+			<img src="icons/4.png" />
+			<img src="icons/5.png" />
+			<img src="icons/6.png" />
+			<img src="icons/7.png" />
+			<img src="icons/8.png" />
+			<img src="icons/9.png" />
+			<img src="icons/10.png" />
+			<img src="icons/1.png" />
+			<img src="icons/2.png" />
+			<img src="icons/3.png" />
+			<img src="icons/4.png" />
+			<img src="icons/5.png" />
+			<img src="icons/6.png" />
+			<img src="icons/7.png" />
+			<img src="icons/8.png" />
+			<img src="icons/9.png" />
+			<img src="icons/10.png" />
+		</div>
+	</div>
+
+</div><!-- End demo -->
+
+<div class="demo-description">
+
+<p>
+	Takes a container element with a list of images in it and creates adds a coverflow effect that can
+	be controlled by clicking on the images or by using the keyboard.
+</p>
+
+</div><!-- End demo-description -->
+
+</body>
+</html>
