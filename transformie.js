@@ -1,19 +1,3 @@
-jQuery(function() {
-
-	if(!jQuery.browser.msie) return;
-
-	// Parsing stylesheets, almost always makes sense
-	Transformie.defaults.stylesheets && Transformie.parseStylesheets();
-
-	// if we want to track inline CSS, we're resolving all inline transforms at page launch
-	Transformie.inlineCSS && Transformie.apply(Transformie.inlineCSS === true ? '*' : Transformie.inlineCSS);
-	
-	// we have a dynamic site and we want to track inline style changes on a list of elements
-	Transformie.defaults.track && Transformie.track(Transformie.defaults.track);
-	
-});
-
-
 var Transformie = {
 	
 	defaults: {
@@ -195,3 +179,19 @@ var Transformie = {
 		
 	}	
 };
+
+
+jQuery(function() {
+
+	if(!jQuery.browser.msie) return;
+
+	// Parsing stylesheets, almost always makes sense
+	Transformie.defaults.stylesheets && Transformie.parseStylesheets();
+
+	// if we want to track inline CSS, we're resolving all inline transforms at page launch
+	Transformie.inlineCSS && Transformie.apply(Transformie.inlineCSS === true ? '*' : Transformie.inlineCSS);
+	
+	// we have a dynamic site and we want to track inline style changes on a list of elements
+	Transformie.defaults.track && Transformie.track(Transformie.defaults.track);
+	
+});
