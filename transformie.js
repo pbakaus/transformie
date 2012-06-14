@@ -9,11 +9,11 @@ var Transformie = {
 	
 	toRadian: function(value) {
 		if(value.indexOf("deg") != -1) {
-			return parseInt(value,10) * (Math.PI * 2 / 360);
+			return parseFloat(value,10) * (Math.PI * 2 / 360);
 		} else if (value.indexOf("grad") != -1) {
-			return parseInt(value,10) * (Math.PI/200);
+			return parseFloat(value,10) * (Math.PI/200);
 		} else {
-			return parseInt(value,10);
+			return parseFloat(value,10);
 		}
 	},
 	
