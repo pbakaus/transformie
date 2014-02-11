@@ -172,7 +172,7 @@ var Transformie = {
 		//Calculate the resulting matrix
 		var matrix = matrices[0];
 		for (var k=0; k < matrices.length; k++) {
-			if(matrices[k+1]) matrix = matrices[k].x(matrices[k+1]);
+			if(matrices[k+1]) matrix = matrix.x(matrices[k+1]);
 		};
 
 		return matrix;
