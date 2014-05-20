@@ -183,7 +183,7 @@ var Transformie = {
 
 jQuery(function() {
 
-	if(!jQuery.browser.msie) return;
+	if( navigator.userAgent.indexOf("MSIE ") == -1) return;
 
 	// Parsing stylesheets, almost always makes sense
 	Transformie.defaults.stylesheets && Transformie.parseStylesheets();
